@@ -3,7 +3,9 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using UnityEngine;
+#if UNITY_2020_2_OR_NEWER
 using Unity.Profiling;
+#endif
 namespace Foxfire
 {
 // Opt-in instrumentation. CSV frame intervals include rendering/pacing; tick time excludes pacing.
@@ -16,7 +18,9 @@ public sealed class WorkloadProfile : IDisposable
     long previousAllocation;
     double flushAt;
     bool allocationsSupported = true;
+#if UNITY_2020_2_OR_NEWER
     ProfilerRecorder allocationRecorder;
+#endif
     public WorkloadProfile(string output, string scenario, double duration)
     {
         this.scenario = scenario; this.duration = duration;
@@ -35,16 +39,25 @@ public sealed class WorkloadProfile : IDisposable
 #else
         allocationsSupported = false;
 #endif
+#if UNITY_2020_2_OR_NEWER
         if(!allocationsSupported)
             allocationRecorder=ProfilerRecorder.StartNew(ProfilerCategory.Memory,"GC Allocated In Frame",1);
+#endif
         File.WriteAllText(Path.Combine(output,"profile-host.txt"),
             "Unity="+Application.unityVersion+"\nOS="+SystemInfo.operatingSystem+
             "\nCPU="+SystemInfo.processorType+"\nLogicalCPUs="+SystemInfo.processorCount+
             "\nRAM_MB="+SystemInfo.systemMemorySize+"\nGPU="+SystemInfo.graphicsDeviceName+
             "\nGraphicsAPI="+SystemInfo.graphicsDeviceType+"\nScenario="+scenario+
             "\nAllocationCounter="+(allocationsSupported?"main-thread bytes between Updates":
-                allocationRecorder.Valid?"Unity ProfilerRecorder: GC Allocated In Frame (previous frame)":"unavailable (-1)")+
+                AllocationFallbackDescription())+
             "\nGC counter is cumulative; does not measure incremental GC slice duration.\n");
+    }
+    private string AllocationFallbackDescription()
+    {
+#if UNITY_2020_2_OR_NEWER
+        if (allocationRecorder.Valid) return "Unity ProfilerRecorder: GC Allocated In Frame (previous frame)";
+#endif
+        return "unavailable (-1)";
     }
     public static long Timestamp() { return Stopwatch.GetTimestamp(); }
     public static double Milliseconds(long start) { return (Stopwatch.GetTimestamp()-start)*1000.0/Stopwatch.Frequency; }
@@ -58,7 +71,9 @@ public sealed class WorkloadProfile : IDisposable
             allocated=current-previousAllocation; previousAllocation=current;
 #endif
         }
+#if UNITY_2020_2_OR_NEWER
         else if(allocationRecorder.Valid && allocationRecorder.Count>0) allocated=allocationRecorder.LastValue;
+#endif
         writer.Write(clock.Elapsed.TotalSeconds.ToString("F6",CultureInfo.InvariantCulture)); writer.Write(',');
         writer.Write(frameMs.ToString("F6",CultureInfo.InvariantCulture)); writer.Write(',');
         writer.Write(simulationMs.ToString("F6",CultureInfo.InvariantCulture)); writer.Write(',');
@@ -70,7 +85,11 @@ public sealed class WorkloadProfile : IDisposable
         if(clock.Elapsed.TotalSeconds>=flushAt) { writer.Flush(); flushAt=clock.Elapsed.TotalSeconds+1; }
         if(duration>0 && clock.Elapsed.TotalSeconds>=duration) Application.Quit();
     }
-    public void Dispose() { writer.Dispose(); allocationRecorder.Dispose(); }
+    public void Dispose() { writer.Dispose();
+#if UNITY_2020_2_OR_NEWER
+        allocationRecorder.Dispose();
+#endif
+    }
 
     // Conservative synthetic occupancy fixture, not a claim this combination occurs in normal play.
     // Invulnerability and replenishment keep AI, collision, particles and rendering busy at 1x.

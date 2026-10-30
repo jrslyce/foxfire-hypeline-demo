@@ -48,7 +48,12 @@ namespace Foxfire.Editor
             if (EditorApplication.isPlayingOrWillChangePlaymode) { Debug.LogError("Exit Play mode before creating the menu."); return; }
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
             var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+#if UNITY_2020_1_OR_NEWER
             if (Object.FindObjectOfType<StartMenuView>(true) != null) { Debug.Log("Editable start menu already exists."); return; }
+#else
+            foreach (var menu in Resources.FindObjectsOfTypeAll<StartMenuView>())
+                if (menu.gameObject.scene.IsValid()) { Debug.Log("Editable start menu already exists."); return; }
+#endif
             font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             var root = new GameObject("Start Menu", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster), typeof(CanvasGroup), typeof(StartMenuView));
             var canvas = root.GetComponent<Canvas>();

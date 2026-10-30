@@ -147,7 +147,12 @@ public sealed class ArenaController : MonoBehaviour
         values.introSeconds = 0;
         Game = new Simulation(values, 1);
         Game.PlayerControlled = true;
+#if UNITY_2020_1_OR_NEWER
         startMenu = FindObjectOfType<StartMenuView>(true);
+#else
+        foreach (var candidate in Resources.FindObjectsOfTypeAll<StartMenuView>())
+            if (candidate.gameObject.scene.IsValid()) { startMenu = candidate; break; }
+#endif
         if (startMenu != null) startMenu.SetState(this, true, false, Outcome.None);
         gateway = simulator = new LocalSimulatorGateway();
         output = Environment.GetEnvironmentVariable("FOXFIRE_STATE_DIR") ??
