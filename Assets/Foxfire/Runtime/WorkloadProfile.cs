@@ -22,6 +22,7 @@ public sealed class WorkloadProfile : IDisposable
         this.scenario = scenario; this.duration = duration;
         writer = new StreamWriter(Path.Combine(output, "frames.csv"), false, System.Text.Encoding.UTF8, 65536);
         writer.WriteLine("elapsed_s,frame_ms,simulation_ms,ticks,managed_allocated_bytes,gc_collections,enemies,shots,pickups,effects,queue,run,phase,submissions");
+#if UNITY_2021_2_OR_NEWER
         try
         {
             long before=GC.GetAllocatedBytesForCurrentThread();
@@ -31,6 +32,9 @@ public sealed class WorkloadProfile : IDisposable
             allocationsSupported=previousAllocation>before;
         }
         catch (NotImplementedException) { allocationsSupported = false; }
+#else
+        allocationsSupported = false;
+#endif
         if(!allocationsSupported)
             allocationRecorder=ProfilerRecorder.StartNew(ProfilerCategory.Memory,"GC Allocated In Frame",1);
         File.WriteAllText(Path.Combine(output,"profile-host.txt"),
@@ -49,8 +53,10 @@ public sealed class WorkloadProfile : IDisposable
         long allocated=-1;
         if (allocationsSupported)
         {
+#if UNITY_2021_2_OR_NEWER
             long current=GC.GetAllocatedBytesForCurrentThread();
             allocated=current-previousAllocation; previousAllocation=current;
+#endif
         }
         else if(allocationRecorder.Valid && allocationRecorder.Count>0) allocated=allocationRecorder.LastValue;
         writer.Write(clock.Elapsed.TotalSeconds.ToString("F6",CultureInfo.InvariantCulture)); writer.Write(',');

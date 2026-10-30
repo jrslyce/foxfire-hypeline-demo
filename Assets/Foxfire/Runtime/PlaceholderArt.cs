@@ -10,9 +10,21 @@ public static class PlaceholderArt
                  Dark = Hex("172c2c");
     public static Color Hex(string s)
     {
-        Color c;
-        ColorUtility.TryParseHtmlString("#" + s, out c);
-        return c;
+        // Pure managed parsing is safe during static initialization in older editors.
+        if (string.IsNullOrEmpty(s)) return default(Color);
+        if (s.Length == 3 || s.Length == 4)
+        {
+            string expanded = "";
+            foreach (char digit in s) expanded += new string(digit, 2);
+            s = expanded;
+        }
+        if (s.Length != 6 && s.Length != 8) return default(Color);
+        uint value;
+        if (!uint.TryParse(s, System.Globalization.NumberStyles.HexNumber,
+                           System.Globalization.CultureInfo.InvariantCulture, out value)) return default(Color);
+        if (s.Length == 6) value = (value << 8) | 255u;
+        return new Color(((value >> 24) & 255) / 255f, ((value >> 16) & 255) / 255f,
+                         ((value >> 8) & 255) / 255f, (value & 255) / 255f);
     }
     public static Sprite Make(string kind)
     {

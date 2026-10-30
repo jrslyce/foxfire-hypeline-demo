@@ -39,10 +39,14 @@ public static class ProjectBuilder
         PlayerSettings.runInBackground = true;
         PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
         PlayerSettings.resizableWindow = true;
+#if UNITY_2022_1_OR_NEWER
         // Local loopback bridge QA is restricted to development players; releases use HTTPS.
         PlayerSettings.insecureHttpOption = InsecureHttpOption.DevelopmentOnly;
         PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Standalone,
                                            ScriptingImplementation.Mono2x);
+#else
+        PlayerSettings.SetScriptingBackend(BuildTargetGroup.Standalone, ScriptingImplementation.Mono2x);
+#endif
         AssetDatabase.SaveAssets();
         Directory.CreateDirectory("artifacts");
         File.WriteAllText("artifacts/player-balance.json", JsonUtility.ToJson(balance.values, true));
